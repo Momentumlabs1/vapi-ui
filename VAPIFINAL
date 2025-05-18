@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Vapi Sprach-Button</title>
+  <!-- 1) Vapi-SDK laden -->
+  <script src="https://cdn.vapi.ai/vapi-web-sdk.min.js"></script>
+
+  <style>
+    /* ===============================
+       2) Farb-Variablen & Reset
+       =============================== */
+    :root {
+      --primary: #8c2eff;       /* Button-Hauptfarbe */
+      --primary-hover: #a64dff; /* Button bei Hover */
+      --bg: #000;               /* Seiten-Hintergrund */
+      --text: #fff;             /* Text-Farbe */
+    }
+    *, *::before, *::after {
+      margin:0; padding:0; box-sizing:border-box;
+    }
+    html, body {
+      width:100%; height:100%; overflow:hidden;
+      background: var(--bg); color: var(--text);
+      font-family: Arial, sans-serif;
+      user-select: none;
+    }
+
+    /* ===============================
+       3) Status-Anzeige oben rechts
+       =============================== */
+    #status {
+      position: fixed;
+      top: 20px; right: 20px;
+      padding: 6px 12px;
+      background: rgba(0,0,0,0.5);
+      border-radius: 4px;
+      font-size: 0.9rem;
+      opacity: 0; transition: opacity 200ms ease;
+    }
+    #status.visible {
+      opacity: 1;
+    }
+
+    /* ===============================
+       4) Button-Container
+       =============================== */
+    #vapi-container {
+      position: fixed;
+      bottom: 40px; right: 40px;
+      width: 100px; height: 100px;
+      z-index: 1000;
+    }
+
+    /* ===============================
+       5) Call-Button Grundstil
+       =============================== */
+    .call-btn {
+      position: relative;
+      width: 100%; height: 100%;
+      border: none; border-radius: 50%;
+      background: var(--primary);
+      color: var(--text);
+      font-size: 1rem; font-weight: bold;
+      cursor: pointer;
+      outline: none;
+      overflow: hidden;
+      transition: transform 200ms ease, background 200ms ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ===============================
+       6) Hover-Effekt
+       =============================== */
+    .call-btn:hover {
+      background: var(--primary-hover);
+      transform: scale(1.1);
+    }
+
+    /* ===============================
+       7) Ripple-Puls beim Sprechen
+       =============================== */
+    .ripple {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 20px; height: 20px;
+      background: rgba(140,46,255,0.3);
+      border-radius: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      opacity: 0;
+    }
+    @keyframes rippleAnim {
+      0%   { transform: translate(-50%,-50%) scale(0.2); opacity: 0.6; }
+      50%  { transform: translate(-50%,-50%) scale(1.2); opacity: 0.3; }
+      100% { transform: translate(-50%,-50%) scale(2);   opacity: 0; }
+    }
+    .speaking .ripple {
+      animation: rippleAnim 1s ease-out infinite;
+    }
+
+    /* ===============================
+       8) Mikrofon-Icon via CSS
+       =============================== */
+    .mic-icon {
+      width: 30px; height: 30px;
+      position: absolute; bottom: 10px; right: 10px;
+      background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="%23fff" viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3..."/></svg>') no-repeat center/contain;
+      opacity: 0.5;
+      transition: opacity 200ms ease;
+    }
+    .speaking .mic-icon { opacity: 1; }
+
+    /* ===============================
+       9) Text im Button
+       =============================== */
+    .lbl {
+      position: relative; z-index: 2;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 10) Status-Anzeige -->
+  <div id="status">Lade SDK…</div>
+
+  <!-- 11) Button-Container -->
+  <div id="vapi-container">
+    <button class="call-btn" id="callBtn">
+      <span class="lbl">Talk</span>
+      <div class="ripple"></div>
+      <div class="mic-icon"></div>
+    </button>
+  </div>
+
+  <script>
+    /*****************************************
+     * A) Config: API-Key & Assistant-ID
+     *****************************************/
+    const API_KEY       = "405a0f4d-fcbf-4479-89b3-e69d8e1be42e";
+    const ASSISTANT_ID  = "41416d7a-17cf-482b-8714-dc42c096106c";
+
+    /*****************************************
+     * B) DOM-Elemente greifen
+     *****************************************/
+    const btn        = document.getElementById("callBtn");
+    const container  = document.getElementById("vapi-container");
+    const statusDiv  = document.getElementById("status");
+
+    /*****************************************
+     * C) Hilfsfunktionen
+     *****************************************/
+    function setStatus(text, dur=0) {
+      statusDiv.textContent = text;
+      statusDiv.classList.add("visible");
+      if (dur>0) {
+        setTimeout(()=> statusDiv.classList.remove("visible"), dur);
+      }
+    }
+
+    /*****************************************
+     * D) SDK initialisieren
+     *****************************************/
+    window.addEventListener("load", () => {
+      if (!window.vapiSDK) {
+        console.error("SDK fehlt!");
+        setStatus("SDK-Fehler", 3000);
+        return;
+      }
+      window.vapiSDK.init({
+        apiKey: API_KEY,
+        assistant: ASSISTANT_ID
+      });
+      console.log("Vapi init");
+      setStatus("Bereit");
+    });
+
+    /*****************************************
+     * E) Button klicken → Call starten
+     *****************************************/
+    btn.addEventListener("click", () => {
+      container.classList.add("speaking");
+      setStatus("Sprich jetzt…");
+      window.vapiSDK.call();
+    });
+
+    /*****************************************
+     * F) SDK-Events behandeln
+     *****************************************/
+    window.vapiSDK?.on("call-started", () => {
+      console.log("Call gestartet");
+    });
+    window.vapiSDK?.on("call-ended", () => {
+      console.log("Call beendet");
+      container.classList.remove("speaking");
+      setStatus("Bereit", 2000);
+    });
+    window.vapiSDK?.on("error", (e) => {
+      console.error("Vapi-Error:", e);
+      container.classList.remove("speaking");
+      setStatus("Fehler", 2000);
+    });
+  </script>
+
+</body>
+</html>
